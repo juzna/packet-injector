@@ -1,0 +1,9 @@
+What is it?
+  Just having fun with node.js, learning. Aim is to create packet decoder and creator and then sniff data from network and inject new packets.
+  Motivation: Inject malformed packets to see, how the network will responsd
+
+
+File list:
+- tools.js - common tools, packet decoder and creator
+- arp.js - simple test of ARP packet
+- 2.js - connect's to updated airserv and send/receives packets
