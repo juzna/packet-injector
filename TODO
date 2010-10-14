@@ -1,0 +1,7 @@
+- own decoders (do not use Pcap's)
+- ethernet reply command
+- ARP reply command
+- ip checksum (16bit)
+- UDP packet
+- TCP packet
+
