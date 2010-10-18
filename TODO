@@ -1,7 +1,7 @@
 - own decoders (do not use Pcap's)
 - ethernet reply command
 - ARP reply command
-- ip checksum (16bit)
+- ip checksum (16bit) - http://www.netfor2.com/checksum.html
 - UDP packet
 - TCP packet
 

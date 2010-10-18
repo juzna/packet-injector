@@ -1,0 +1,19 @@
+There are patched files for aircrack-ng suite, which allow airserv-ng to work on ethernet interfaces. Suddenly, it breaks other functionality, so you have to compile this program in different directory than normal aircrack.
+
+Copy these files to:
+common.mak - to root directory of aircrack-ng
+airserv-ng.c - to src/ directory
+linux.c - to src/osdep directory
+
+Usage:
+Compile with make, it will create airserv-ng program. Run it as normal airserv (e.g. airserv-ng eth0). It will listen on tcp port 666 and when a client connects, will send all data from ethernet interface to this tcp socket. Respectively, all data received on this socket are injected to ethernet inteface.
+
+
+For communication, it uses simplified aircrack protocol (IMHO not specified anywhere, but all programs from aircrack suite use it). But some header information for packets are removed (shoud be changed in future version).
+
+
+
+
+TODO:
+ Should be updated to use full aircrack communication protocol (i.e. with all headers), so that it's interoperable with original airserv.
+ Needed a version, which doesn't break aircrack.

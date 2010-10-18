@@ -1,3 +1,5 @@
+// First test of node.js
+
 var net = require('net');
 var server = net.createServer(function (stream) {
   // stream.setEncoding('utf8');
