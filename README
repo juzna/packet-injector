@@ -10,6 +10,10 @@ Principles:
  For communication is used simplified aircrack protocol (will change in future versions)
 
 
+Prerequisities:
+ node.js
+ node_pcap
+
 
 File list:
 - tools.js - common tools, packet decoder and creator
