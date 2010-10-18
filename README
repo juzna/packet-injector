@@ -3,7 +3,15 @@ What is it?
   Motivation: Inject malformed packets to see, how the network will responsd
 
 
+Principles:
+ This app consits of two parts:
+   - server - written in C, listens on ethernet interface (or wifi card)
+   - client - written in JS, connects to server via TCP. Uses server to access ethernet or wifi card 
+ For communication is used simplified aircrack protocol (will change in future versions)
+
+
+
 File list:
 - tools.js - common tools, packet decoder and creator
 - arp.js - simple test of ARP packet
-- 2.js - connect's to updated airserv and send/receives packets
+- client.js - connect's to updated airserv and send/receives packets
