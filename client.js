@@ -45,6 +45,8 @@ air.sendPacket = function(pkt, cb) {
 
 // Received an raw packet
 air.on('raw-packet', function(buf) {
+  console.log("Received packet:", sys.inspect(buf));
+  
   // Decode as ethernet packet
   var eth = tools.EthernetPacket.decode(buf, 0);
   
@@ -68,14 +70,40 @@ air.on('packet.ethernet', function(eth) {
   }
 });
 
+// On IP packet
+air.on('packet.ip', function(ip) {
+  var ptype = ip.getPayloadType();
+  console.log("Got IP packet with ", ptype, "payload");
+  
+  switch(ptype) {
+    case 'icmp':
+      air.emit('packet.icmp', ip.payload);
+      break;
+      
+    case 'udp':
+      air.emit('packet.udp', ip.payload);
+      break;
+  }
+});   
+
+
+
 
 // ARP request -> send something
 air.on('packet.arp', function(arp) {
-  if(arp.operation == 'request') {
-    console.log(sys.inspect(arp));
-    
+  if(arp.operation == 'request' && arp.target_pa == '10.0.0.7') {
     var reply = arp.reply( { sender_ha: global.config.myMAC } );
     air.sendPacket(reply);
+    console.log(sys.inspect(reply));    
   }
 });
 
+
+// On ping request, send response
+air.on('packet.icmp', function(icmp) {
+  if(icmp.icmp_type == 8 && icmp.lower.daddr == '10.0.0.7') {
+    var reply = icmp.reply();
+    air.sendPacket(reply);
+    console.log(sys.inspect(reply));
+  }
+});

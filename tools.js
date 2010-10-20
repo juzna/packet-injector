@@ -401,7 +401,7 @@ var ARPPacket = Packet.define('ARPPacket', {
       target_ha: this.sender_ha,
       target_pa: this.sender_pa,
       sender_pa: this.target_pa, // Requested IP
-    }));
+    }, params));
   },
 });
 
@@ -512,16 +512,19 @@ var IPPacket = Packet.define('IPPacket', {
       switch(ret.protocol) {
         case 1:
           ret.protocol_name = "ICMP";
-          //ret.icmp = decode.icmp(raw_packet, offset + (ret.header_length * 4));
+          payload = ICMPPacket.decode(buf, pData);
           break;
+          
         case 2:
           ret.protocol_name = "IGMP";
           //ret.igmp = decode.igmp(raw_packet, offset + (ret.header_length * 4));
           break;
+          
         case 6:
           ret.protocol_name = "TCP";
           //ret.tcp = decode.tcp(raw_packet, offset + (ret.header_length * 4), ret);
           break;
+          
         case 17:
           ret.protocol_name = "UDP";
           payload = UDPPacket.decode(buf, pData);
@@ -662,3 +665,55 @@ var UDPPacket = Packet.define('UDPPacket', {
   },
 });
 
+
+
+// ICMP packet definition
+var ICMPPacket = Packet.define('ICMPPacket', {
+  type: 'icmp',
+  headerLength: 8,
+  defaults: {
+    icmp_type: 8, // Ping request
+    code: 0,
+    id: Math.floor(Math.random()*0x10000), // Random 16bit integer
+    sequence: Math.floor(Math.random()*0x10000), // Random 16bit integer
+  },
+  
+  decode: function(buf, offset) {
+    var ret = {};
+
+    // http://en.wikipedia.org/wiki/Internet_Control_Message_Protocol
+    ret.icmp_type = buf[offset];
+    ret.code = buf[offset + 1];
+    ret.checksum = unpack.uint16(buf, offset + 2); // 2, 3
+    ret.id = unpack.uint16(buf, offset + 4); // 4, 5
+    ret.sequence = unpack.uint16(buf, offset + 6); // 6, 7
+    
+    return new ICMPPacket(ret, buf.slice(offset + 8));
+  },
+  
+  encodeHeader: function(buf) {
+    buf[0] = this.icmp_type;
+    buf[1] = this.code;
+    buf[2] = buf[3] = 0; // Checksum, to be added later
+    pack.uint16(this.id, buf, 4);
+    pack.uint16(this.sequence, buf, 6);
+  },
+  
+  encodeChecksum: function(buf) {
+    var checksum = IPPacket.prototype.checksum(buf, 0, this.getTotalLength());
+    pack.uint16(checksum, buf, 2);
+  },
+  
+  reply: function(params, payload) {
+    if(this.icmp_type == 8) {
+      return new ICMPPacket(extend({
+        icmp_type: 0,
+        code: 0,
+        id: this.id,
+        sequence: this.sequence
+      }, params), payload || this.payload);
+    }
+    
+    else throw new Error("Dont know how to create a reply");
+  }
+});
