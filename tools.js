@@ -1,3 +1,15 @@
+/**
+* Some useful JS code:
+* - Class - working with classes
+* - extend, defauls - extending objects
+* - pack - pack structures to binary form
+* - Packet - basic packet class
+* - Packet.define - easy packet class creator
+*
+* And also packet definitions.
+*  Decoders are based on code from http://github.com/mranney/node_pcap/ with some modifications
+*/
+
 var Pcap = require('pcap'), unpack = exports.unpack = Pcap.unpack;
 var Buffer = require('buffer').Buffer;
 var sys = require('sys');
