@@ -1,0 +1,30 @@
+Class Packet:
+getPayloadType() -> string
+getPayload() -> Packet
+getType() -> string
+getLower() -> Packet
+setPayload(Packet || Buffer || string)
+setLower(Packet)
+getHeaderLength() -> int
+getPayloadLength() -> int
+getTotalLength() -> int
+encode(buf?) -> Buffer
+encodePayload(buf, offset, len)
+
+
+For creating packet classes use this:
+Packet.define: function(options) -> Packet constructor
+  options = {
+    baseClass: Packet,
+    type: 'arp',
+    headerLength: 0,
+    defaults: {},
+    init(params, payload),
+    decode(buf, offset)
+    encodeHeader(buf) -> int
+    encodeFooter(buf)
+    encodeChecksum(buf)
+    static: {},
+    methods: {},
+  }
+
