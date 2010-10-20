@@ -21,12 +21,18 @@ var udp = new tools.UDPPacket( {}, "ABCDEFGH");
 // Create ARP packet
 var arp = new tools.ARPPacket( { target_pa: '10.0.0.127' } );
 
+
 // Create IP packet
 var ip = new tools.IPPacket( { daddr: '10.0.0.5' }, udp );
 
 // Create Ethernet
 var ethParams = { dhost: 'ff:ff:ff:ff:ff:ff' };
 var eth = new tools.EthernetPacket(ethParams, ip);
+
+
+console.log(sys.inspect(udp));
+console.log(sys.inspect(udp.reply(null, "Krtek")));
+ return;
 
 
 // Write to buffer

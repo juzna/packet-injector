@@ -1,5 +1,5 @@
 /**
-* PING packet
+* PING packet test
 */
 
 
