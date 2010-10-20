@@ -19,3 +19,7 @@ File list:
 - tools.js - common tools, packet decoder and creator
 - arp.js - simple test of ARP packet
 - client.js - connect's to updated airserv and send/receives packets
+- aircrack.js - communication protocol for airserv
+- ping.js - tester for ping packets
+- tests.js - some simple unit tests
+

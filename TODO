@@ -1,7 +1,5 @@
-- own decoders (do not use Pcap's)
-- ethernet reply command
-- ARP reply command
-- ip checksum (16bit) - http://www.netfor2.com/checksum.html
-- UDP packet
-- TCP packet
+- TCP decoder and encoder
+- DNS over UDP decoder and encoder
+- rewrite code for full aircrack protocol (including headers)
+- 802.11 decoder and encoder
 
