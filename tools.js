@@ -266,6 +266,7 @@ var Packet = exports.Packet = Class({
   * Create reply for this packet (and all lower layers)
   */
   reply: function(params, payload) {
+    arguments[0] = params || {};
     console.log("Creating reply for ", this.getType(), this.lower);
     if(typeof this._reply != 'function') throw new Error("This level (" + this.getType() + ") doesnt support reply");
 
@@ -276,8 +277,7 @@ var Packet = exports.Packet = Class({
     if(this.lower) {
       if(!(this.lower instanceof Packet)) throw new Error("Lower layer is not a Packet");
       
-      var p2 = params ? params.lower : undefined;
-      this.lower.reply(p2, ret);
+      this.lower.reply(params.lower, ret);
     }
     
     return ret;
@@ -391,10 +391,16 @@ var ARPPacket = Packet.define('ARPPacket', {
   reply: function(params) {
     if(this.operation != 'request') throw new Error("Unable to reply, this is not a request");
     
+    // Update parameters for lower level (ethernet layer)
+    if(!params.lower) params.lower = {};
+    if(!params.lower.shost && params.sender_ha) params.lower.shost = params.sender_ha;
+    
+    
     return new ARPPacket(extend({
       operation: 'reply',
       target_ha: this.sender_ha,
       target_pa: this.sender_pa,
+      sender_pa: this.target_pa, // Requested IP
     }));
   },
 });
