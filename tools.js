@@ -261,6 +261,35 @@ var Packet = exports.Packet = Class({
     else if(typeof p == 'string') buf.write(p, offset);
     else throw new Error("Unknown payload type");
   },
+  
+  /**
+  * Create reply for this packet (and all lower layers)
+  */
+  reply: function(params, payload) {
+    console.log("Creating reply for ", this.getType(), this.lower);
+    if(typeof this._reply != 'function') throw new Error("This level (" + this.getType() + ") doesnt support reply");
+
+    // Create reply packet
+    var ret = this._reply.apply(this, arguments);
+    
+    // Create reply for lower level
+    if(this.lower) {
+      if(!(this.lower instanceof Packet)) throw new Error("Lower layer is not a Packet");
+      
+      var p2 = params ? params.lower : undefined;
+      this.lower.reply(p2, ret);
+    }
+    
+    return ret;
+  },
+  
+  getLowest: function() {
+    return this.lower ? this.lower.getLowest() : this;
+  },
+  
+  encodeAll: function() {
+    return this.getLowest().encode();
+  },
 });
 
 
@@ -290,6 +319,7 @@ Packet.define = function(exportName, options) {
   if(typeof options.encodeHeader == 'function') params._encodeHeader = options.encodeHeader;
   if(typeof options.encodeFooter == 'function') params._encodeFooter = options.encodeFooter;
   if(typeof options.encodeChecksum == 'function') params._encodeChecksum = options.encodeChecksum;
+  if(typeof options.reply == 'function') params._reply = options.reply;
   
   if(options.static) extend(params.Static, options.static);
   
@@ -356,7 +386,17 @@ var ARPPacket = Packet.define('ARPPacket', {
     pack.ipv4_addr(this.sender_pa, buf, offset + 14);
     pack.ethernet_addr(this.target_ha, buf, offset + 18);
     pack.ipv4_addr(this.target_pa, buf, offset + 24);
-  },  
+  },
+  
+  reply: function(params) {
+    if(this.operation != 'request') throw new Error("Unable to reply, this is not a request");
+    
+    return new ARPPacket(extend({
+      operation: 'reply',
+      target_ha: this.sender_ha,
+      target_pa: this.sender_pa,
+    }));
+  },
 });
 
 
@@ -404,6 +444,15 @@ var EthernetPacket = Packet.define('EthernetPacket', {
     pack.ethernet_addr(this.dhost, buf, offset + 0); // Destination MAC address
     pack.ethernet_addr(this.shost, buf, offset + 6); // Source MAC address
     pack.uint16(this.ethertype, buf, offset + 12);   // Ethernet type
+  },
+  
+  // Create reply for this packet
+  reply: function(params, payload) {
+    return new EthernetPacket(extend({
+      dhost: this.shost,
+      shost: this.dhost,
+      ethertype: this.ethertype,
+    }, params || {}), payload);
   },
 });
 
@@ -504,6 +553,14 @@ var IPPacket = Packet.define('IPPacket', {
     pack.uint16(checksum, buf, 10);
   },
   
+  reply: function(params, payload) {
+    return new IPPacket(extend({
+      saddr: this.daddr,
+      daddr: this.saddr,
+      identification: this.identification,
+    }, params), payload);
+  },
+  
   // Another methods
   methods: {
     // Get protocol number of payload (http://en.wikipedia.org/wiki/List_of_IP_protocol_numbers)
@@ -589,6 +646,13 @@ var UDPPacket = Packet.define('UDPPacket', {
     if(!(this.lower instanceof IPPacket)) throw new Error("This packet doesnt have IP packet, which is needed for checksum computation");
     var checksum = this.lower.payloadChecksum(buf, 0, this.getTotalLength(), 17);
     pack.uint16(checksum, buf, 6); 
+  },
+  
+  reply: function(params, payload) {
+    return new UDPPacket(extend({
+      sport: this.dport,
+      dport: this.sport,
+    }, params), payload);
   },
 });
 
