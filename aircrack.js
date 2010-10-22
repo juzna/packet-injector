@@ -103,7 +103,7 @@ function AirCrackConnection(ip, port) {
 
     if(cmd == commands.NET_PACKET) {
       // Emit new packet event
-      self.emit('raw-packet', data);
+      self.emit('packet', data);
     }
     else {
       // Execute callback
@@ -176,9 +176,14 @@ function AirCrackConnection(ip, port) {
     }
   };
   
-  // Send packet to network
-  self.send = function sendPacket(buf, cb) {
-    self.writeMessage(commands.NET_WRITE, buf, cb);
+  // Send buffer to network
+  self.send = function send(buf, cb) {
+    return self.writeMessage(commands.NET_WRITE, buf, cb);
+  };
+  
+  // Encode packet and all lower layers, and send it
+  self.sendPacket = function sendPacket(pkt, cb) {
+    return self.send(pkt.encodeAll(), cb);
   };
   
   // Get MAC address

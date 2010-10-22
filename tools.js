@@ -173,7 +173,7 @@ var Packet = exports.Packet = Class({
     this.payload = x;
     this.payloadType = (x instanceof Packet) ? x.getType() : 'raw';
   },
-  getType: function() { return this.type; },
+  getType: function() { return this.packetType; },
   
   // Try to find payload type
   getPayloadType: function() {
@@ -216,7 +216,7 @@ var Packet = exports.Packet = Class({
   
   // Encode packet to byte array
   encode: function(buf) {
-    //console.log(this.type, sys.inspect(this), sys.inspect(buf));
+    //console.log(this.packetType, sys.inspect(this), sys.inspect(buf));
     // Create new buffer, if needed
     if(buf === undefined) {
       buf = new Buffer(this.getTotalLength());
@@ -252,7 +252,7 @@ var Packet = exports.Packet = Class({
   * Encode payload of this packet to prepared buffer
   */
   encodePayload: function(buf, offset, len) {
-    //console.log(this.type, offset, len);
+    //console.log(this.packetType, offset, len);
     var p = this.payload;
     
     if(!p);
@@ -304,7 +304,7 @@ Packet.define = function(exportName, options) {
   if(options.methods) extend(params, options.methods);
   params.Extends = options.baseClass || Packet;
   params.headerLength = options.headerLength;
-  params.type = options.type;
+  params.packetType = options.packetType;
   params.Static = {};
   params.Static.defaults = options.defaults || {};
   
@@ -337,7 +337,7 @@ Packet.define = function(exportName, options) {
 
 // ARP Packet definitionn
 var ARPPacket = Packet.define('ARPPacket', {
-  type: 'arp',
+  packetType: 'arp',
   
   // Length of header (actually, it has no payload, so it's length of whole packet ;)
   headerLength: 28,
@@ -409,7 +409,7 @@ var ARPPacket = Packet.define('ARPPacket', {
 
 // Ethernet packet definition
 var EthernetPacket = Packet.define('EthernetPacket', {
-  type: 'ethernet',
+  packetType: 'ethernet',
   
   headerLength: 14,
 
@@ -468,7 +468,7 @@ var EthernetPacket = Packet.define('EthernetPacket', {
 
 // IP Packet definition
 var IPPacket = Packet.define('IPPacket', {
-  type: 'ip',
+  packetType: 'ip',
   
   headerLength: 20,
   
@@ -623,7 +623,7 @@ var IPPacket = Packet.define('IPPacket', {
 
 // UDP packet definition
 var UDPPacket = Packet.define('UDPPacket', {
-  type: 'udp',
+  packetType: 'udp',
   headerLength: 8,
   defaults: {
     sport: 0x6666,
@@ -669,10 +669,10 @@ var UDPPacket = Packet.define('UDPPacket', {
 
 // ICMP packet definition
 var ICMPPacket = Packet.define('ICMPPacket', {
-  type: 'icmp',
+  packetType: 'icmp',
   headerLength: 8,
   defaults: {
-    icmp_type: 8, // Ping request
+    type: 8, // Ping request
     code: 0,
     id: Math.floor(Math.random()*0x10000), // Random 16bit integer
     sequence: Math.floor(Math.random()*0x10000), // Random 16bit integer
@@ -682,7 +682,7 @@ var ICMPPacket = Packet.define('ICMPPacket', {
     var ret = {};
 
     // http://en.wikipedia.org/wiki/Internet_Control_Message_Protocol
-    ret.icmp_type = buf[offset];
+    ret.type = buf[offset];
     ret.code = buf[offset + 1];
     ret.checksum = unpack.uint16(buf, offset + 2); // 2, 3
     ret.id = unpack.uint16(buf, offset + 4); // 4, 5
@@ -692,7 +692,7 @@ var ICMPPacket = Packet.define('ICMPPacket', {
   },
   
   encodeHeader: function(buf) {
-    buf[0] = this.icmp_type;
+    buf[0] = this.type;
     buf[1] = this.code;
     buf[2] = buf[3] = 0; // Checksum, to be added later
     pack.uint16(this.id, buf, 4);
@@ -705,9 +705,9 @@ var ICMPPacket = Packet.define('ICMPPacket', {
   },
   
   reply: function(params, payload) {
-    if(this.icmp_type == 8) {
+    if(this.type == 8) {
       return new ICMPPacket(extend({
-        icmp_type: 0,
+        type: 0,
         code: 0,
         id: this.id,
         sequence: this.sequence
@@ -716,4 +716,117 @@ var ICMPPacket = Packet.define('ICMPPacket', {
     
     else throw new Error("Dont know how to create a reply");
   }
+});
+
+
+// Definition of Aircrack protocol headers
+var AirCrackTxHeader = Packet.define('AirCrackTxHeader', {
+  packetType: 'aircrack-tx-header',
+  headerLength: 2,
+  defaults: {},
+  decode: function(buf, offset) {
+    return new AirCrackTxHeader({}, IEEE802dot11Packet.decode(buf, offset + 2));
+  },
+  encodeHeader: function(buf) {
+    buf[0] = buf[1] = 0; // Dummy
+  },
+});
+var AirCrackRxHeader = Packet.define('AirCrackRxHeader', {
+  packetType: 'aircrack-rx-header',
+  headerLength: 8 + 6 * 4, // one 64bit number plus six 32bit numbers
+  defaults: {},
+  decode: function(buf, offset) {
+    var ret = {};
+    // TODO: decode actual values
+    
+    return new AirCrackRxHeader(ret, IEEE802dot11Packet.decode(buf, offset + AirCrackRxHeader.prototype.headerLength));
+  },
+});
+  
+
+// Define 802.11 (WiFi) protocol header
+var IEEE802dot11Packet = Packet.define('IEEE802dot11Packet', {
+  packetType: '802.11',
+  headerLength: 24, // Usually ;)
+  defaults: {
+    // TODO: fill in
+  },
+  
+  decode: function(buf, offset) {
+    var ret = {};
+    
+    ret.buffer = buf.slice(offset);
+    ret.frame_control = unpack.uint16(buf, offset + 0); // Frame control field
+    ret.flags = ret.frame_control & 0xff;
+    ret.duration = unpack.uint16(buf, offset + 2);
+    ret.sequence = unpack.uint16(buf, 22);
+    
+    // Decode frame control bits
+    {
+      var frameControlBits = ['to_ds', 'from_ds', 'frags', 'retry', 'pwrmgt', 'moredata', 'protected', 'order' ];
+      for(var i = 0, bit = 1; i < frameControlBits.length; i++, bit *= 2) {
+        ret[frameControlBits[i]] = (ret.frame_control & bit) == bit;
+      }
+      
+      ret.protocol = ret.frame_control >> 14;
+      ret.type = (ret.frame_control >> 12) & 3;
+      ret.subtype = (ret.frame_control >> 8) & 0xf;
+    }
+    
+    // Decode addresses (TODO: check, if this is in good order)
+    {
+      var addrList;
+      if(ret.from_ds) {
+        if(ret.to_ds) addrList = [ 'da', 'sa', 'bssid' ];
+        else addrList = [ 'da', 'bssid', 'sa' ];
+      }
+      else {
+        if(ret.to_ds) addrList = [ 'da', 'bssid', 'sa' ];
+        else addrList = [ 'rxa', 'txa', 'bssid', 'da' ];
+      }
+      
+      ret[addrList[0]] = unpack.ethernet_addr(buf, 4);
+      ret[addrList[1]] = unpack.ethernet_addr(buf, 10);
+      ret[addrList[2]] = unpack.ethernet_addr(buf, 16);
+      
+      if(addrList.length == 4) ret[addrList[3]] = unpack.ethernet_addr(buf, 24);
+      offset += (addrList.length == 4) ? 30 : 24; // Move offset
+    }
+    
+    return new IEEE802dot11Packet(ret, LLCPacket.decode(buf, offset));
+  },
+});
+
+// Logical link control protocol (between 802.11 and IP ;)
+var LLCPacket = Packet.define('LLCPacket', {
+  packetType: 'llc',
+  headerLength: 8,
+  defaults: {
+    // TODO fill in
+  },
+  
+  decode: function(buf, offset) {
+    var ret = {}, payload;
+    ret.type = unpack.uint16(buf, offset + 6);
+    console.log('LLC type:', ret.type);
+    
+    if(ret.type == 0x0800) { // IPv4
+      payload = IPPacket.decode(buf, offset + 8);
+    }
+    
+    return new LLCPacket(ret, payload);
+  },
+});
+
+
+// Radio-tap wrapper
+var RadioTapPacket = Packet.define('RadioTapPacket', {
+  packetType: 'radiotap',
+  headerLength: 24,
+  defaults: {},
+  decode: function(buf, offset) {
+    var ret = {};
+    // TODO: decode
+    return new RadioTapPacket(ret, IEEE802dot11Packet.decode(buf, offset + 24));
+  },
 });
