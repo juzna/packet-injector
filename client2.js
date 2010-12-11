@@ -46,8 +46,10 @@ conn.on('end', function () {
 // Received an raw packet -> decode it
 conn.on('packet', function(buf) {
   var pkt;
+  if(src.filter && !src.filter(buf)) return; // Not passed thru filter
+  if(src.byteLimit) buf = buf.slice(0, src.byteLimit);
   
-  console.log("Received packet", sys.inspect(buf.slice(0, 100)));
+  console.log("Received packet", sys.inspect(buf.length > 100 ? buf.slice(0, 100) : buf));
   
   if(typeof src.decoder == 'string') pkt = tools[src.decoder].decode(buf, 0);
   else if(typeof src.decoder == 'function') pkt = src.decoder(buf);

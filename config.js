@@ -1,3 +1,5 @@
+var sys = require('sys');
+
 // Global config
 global.config = {
 	myMAC: "11:22:33:44:55:66",
@@ -22,6 +24,11 @@ global.sources = {
     constructor: 'AirCrackConnection',
     arguments: [ 'localhost', '666' ],
     decoder: 'AirCrackRxHeader',
+    filter: function(buf) {
+      var offset = 32; // Skip aircrack rx header
+      var x = buf[offset];
+      return ((x >> 2) & 3) == 2; // Take only data packets
+    }
   },
   
   // Pcap file
@@ -29,9 +36,10 @@ global.sources = {
     description: "capture file",
     library: './pcap-connection',
     constructor: function() {
-      return require('pcap').createOfflineSession("./sample/lib.cap", 'ip');
+      return require('pcap').createOfflineSession("./sample/lib2.cap", '');
     },
     decoder: 'RadioTapPacket',
+    byteLimit: 200,
   },
 };
 

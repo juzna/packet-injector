@@ -10,6 +10,11 @@
 *  Decoders are based on code from http://github.com/mranney/node_pcap/ with some modifications
 */
 
+exports.showDebug = true;
+var debug = exports.debug = function() {
+  if(exports.showDebug) console.log.apply(console, arguments);
+}
+
 var Pcap = require('pcap'), unpack = exports.unpack = Pcap.unpack;
 var Buffer = require('buffer').Buffer;
 var sys = require('sys');
@@ -315,7 +320,14 @@ Packet.define = function(exportName, options) {
   },
   
   // Decoding and encoding methods
-  params.Static.decode = options.decode || function() { throw new Error("This packet doesnt support decoding"); };
+  params.Static._decode = options.decode || function() { throw new Error("This packet doesnt support decoding"); };
+  if(options.decode) {
+    params.Static.decode = function(buf, offset) {
+      if(buf) debug("Decoding packet " + params.packetType + " from buffer ", buf.length - offset, sys.inspect(buf.slice(offset, buf.length > 100 ? 100 : buf.length)), "\n\n");
+      
+      return options.decode.apply(this, arguments);
+    };
+  }
   if(typeof options.encodeHeader == 'function') params._encodeHeader = options.encodeHeader;
   if(typeof options.encodeFooter == 'function') params._encodeFooter = options.encodeFooter;
   if(typeof options.encodeChecksum == 'function') params._encodeChecksum = options.encodeChecksum;
@@ -733,7 +745,7 @@ var AirCrackTxHeader = Packet.define('AirCrackTxHeader', {
 });
 var AirCrackRxHeader = Packet.define('AirCrackRxHeader', {
   packetType: 'aircrack-rx-header',
-  headerLength: 8 + 6 * 4, // one 64bit number plus six 32bit numbers
+  headerLength: 32, // one 64bit number plus six 32bit numbers
   defaults: {},
   decode: function(buf, offset) {
     var ret = {};
@@ -756,10 +768,10 @@ var IEEE802dot11Packet = Packet.define('IEEE802dot11Packet', {
     var ret = {};
     
     ret.buffer = buf.slice(offset);
-    ret.frame_control = unpack.uint16(buf, offset + 0); // Frame control field
-    ret.flags = ret.frame_control & 0xff;
+    ret.frame_control = buf[offset] + (buf[offset + 1] << 8); //  unpack.uint16(buf, offset + 0); // Frame control field
+    ret.flags = (ret.frame_control >> 8) & 0xff;
     ret.duration = unpack.uint16(buf, offset + 2);
-    ret.sequence = unpack.uint16(buf, 22);
+    ret.sequence = unpack.uint16(buf, offset + 22);
     
     // Decode frame control bits
     {
@@ -768,28 +780,28 @@ var IEEE802dot11Packet = Packet.define('IEEE802dot11Packet', {
         ret[frameControlBits[i]] = (ret.frame_control & bit) == bit;
       }
       
-      ret.protocol = ret.frame_control >> 14;
-      ret.type = (ret.frame_control >> 12) & 3;
-      ret.subtype = (ret.frame_control >> 8) & 0xf;
+      ret.protocol = ret.frame_control & 3;
+      ret.type = (ret.frame_control >> 2) & 3;
+      ret.subtype = (ret.frame_control >> 4) & 0xf;
     }
     
     // Decode addresses (TODO: check, if this is in good order)
     {
       var addrList;
-      if(ret.from_ds) {
-        if(ret.to_ds) addrList = [ 'da', 'sa', 'bssid' ];
+      if(!ret.to_ds) {
+        if(!ret.from_ds) addrList = [ 'da', 'sa', 'bssid' ];
         else addrList = [ 'da', 'bssid', 'sa' ];
       }
       else {
-        if(ret.to_ds) addrList = [ 'da', 'bssid', 'sa' ];
-        else addrList = [ 'rxa', 'txa', 'bssid', 'da' ];
+        if(!ret.from_ds) addrList = [ 'bssid', 'sa', 'da' ];
+        else addrList = [ 'rxa', 'txa', 'sa', 'da' ];
       }
       
-      ret[addrList[0]] = unpack.ethernet_addr(buf, 4);
-      ret[addrList[1]] = unpack.ethernet_addr(buf, 10);
-      ret[addrList[2]] = unpack.ethernet_addr(buf, 16);
+      ret[addrList[0]] = unpack.ethernet_addr(buf, offset + 4);
+      ret[addrList[1]] = unpack.ethernet_addr(buf, offset + 10);
+      ret[addrList[2]] = unpack.ethernet_addr(buf, offset + 16);
       
-      if(addrList.length == 4) ret[addrList[3]] = unpack.ethernet_addr(buf, 24);
+      if(addrList.length == 4) ret[addrList[3]] = unpack.ethernet_addr(buf, offset + 24);
       offset += (addrList.length == 4) ? 30 : 24; // Move offset
     }
     
